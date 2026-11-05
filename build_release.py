@@ -14,6 +14,13 @@ import shutil
 import subprocess
 import sys
 
+# كونسول GitHub على ويندوز بيستخدم cp1252 ومبيعرفش يطبع عربي، فبنجبر UTF-8 (وبنتجاهل أي حرف مش مدعوم بدل ما البناء يفشل)
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 from aerograb.config import APP_VERSION  # noqa: E402
