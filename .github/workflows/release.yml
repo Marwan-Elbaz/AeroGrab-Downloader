@@ -1,0 +1,68 @@
+# كل مرة ترفع Tag بصيغة v4.2 يبني GitHub نسختين لويندوز (64-bit و 32-bit): مثبّت Setup.exe + zip، ويعمل Release فيهم.
+name: Build and release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, x86]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.arch }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Tag must match APP_VERSION
+        shell: pwsh
+        run: |
+          $v = python -c "from aerograb.config import APP_VERSION; print(APP_VERSION)"
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match APP_VERSION v$v in aerograb/config.py" }
+
+      - name: Build
+        run: python build_release.py
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $v = python -c "from aerograb.config import APP_VERSION; print(APP_VERSION)"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" "/DArch=${{ matrix.arch }}" installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AeroGrab-${{ matrix.arch }}
+          path: |
+            release/AeroGrab-*.zip
+            release/AeroGrab-*-Setup.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/AeroGrab-*-Setup.exe
+            release/AeroGrab-*.zip
+          generate_release_notes: true
