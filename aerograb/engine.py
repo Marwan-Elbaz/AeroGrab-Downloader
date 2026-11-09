@@ -74,7 +74,8 @@ def start_single_download(url, q_text, item_id=None, save_path=None, referer="",
                 "⚠️ Duplicate Download", "This video has already been downloaded before.\nDo you want to download it again?"):
             return
         t = new_task(url, q_text, save_path, is_repeat, referer, direct=direct, cookie=cookie, ua=ua, **extra)
-        item_id = gui.tree.insert("", "end", values=task_values(t), tags=())
+        from aerograb.views.statusicons import tree_image
+        item_id = gui.tree.insert("", "end", values=task_values(t), tags=(), image=tree_image("queued"))
         with tasks_lock:
             tasks[item_id] = t
         gui.tree.see(item_id)
@@ -113,18 +114,16 @@ def start_single_download(url, q_text, item_id=None, save_path=None, referer="",
 
 
 def describe_formats(fmts):
-    """وصف مختصر للصيغة اللي اتختارت فعلاً، مثلاً "1080p · H.264" أو "Audio · m4a"."""
+    """وصف مختصر للصيغة اللي اتختارت فعلاً، مثلاً "1080p" أو "Audio · m4a"."""
     try:
         v = next((f for f in fmts if (f.get("vcodec") or "none") != "none"), None)
         if v is None:
             a = next(iter(fmts), {})
             abr = a.get("abr")
             return "Audio · " + (a.get("ext") or "") + (f" · {int(abr)}k" if abr else "")
-        vc = (v.get("vcodec") or "").lower()
-        codec = "H.264" if vc.startswith(("avc1", "h264")) else "AV1" if vc.startswith("av0") else "VP9" if vc.startswith("vp") else vc.split(".")[0].upper()
         h = v.get("height")
         fps = v.get("fps")
-        return " · ".join(x for x in (f"{h}p" if h else "", f"{int(fps)}fps" if fps and fps > 30 else "", codec) if x)
+        return " · ".join(x for x in (f"{h}p" if h else "", f"{int(fps)}fps" if fps and fps > 30 else "") if x)      # الجودة بس (من غير اسم الكودك)
     except Exception:
         return ""
 
@@ -668,7 +667,7 @@ def download_worker(item_id, run, url, q_text):
                 "continuedl": True, "ignoreerrors": False,
                 "progress_hooks": [my_hook], "postprocessor_hooks": [pp_hook],
                 "retries": 15, "fragment_retries": 15, "socket_timeout": 30,
-                "concurrent_fragment_downloads": 4, "trim_file_name": 120,
+                "concurrent_fragment_downloads": max(4, min(16, get_connections())), "trim_file_name": 120,      # أجزاء HLS/DASH بالتوازي (حسب عدد الاتصالات في الإعدادات)
             })
             if find_ffmpeg():
                 o["ffmpeg_location"] = find_ffmpeg()

@@ -75,15 +75,20 @@ def open_settings_window(section=None):
     apply_window_icon(win)
     _settings_win[0] = win
     win.title("Settings")
-    win.geometry("860x620")
-    win.minsize(760, 520)
+    sw_, sh_ = win.winfo_screenwidth(), win.winfo_screenheight()
+    ww, wh = min(920, sw_ - 80), min(780, sh_ - 120)                    # أكبر قدر يناسب الشاشة (من غير ما تعدّي حجمها)
+    win.geometry(f"{ww}x{wh}+{max(0, (sw_ - ww) // 2)}+{max(0, (sh_ - wh) // 2 - 20)}")
+    win.minsize(min(760, ww), min(480, wh))
     win.attributes("-topmost", True)
     win.after(600, lambda: win.attributes("-topmost", False))
 
     # ------------------------------------------------------------------ الهيكل: شريط جانبي + محتوى
-    side = ctk.CTkFrame(win, width=206, corner_radius=0)
-    side.pack(side=tk.LEFT, fill=tk.Y)
-    side.pack_propagate(False)
+    side_holder = ctk.CTkFrame(win, width=214, corner_radius=0)
+    side_holder.pack(side=tk.LEFT, fill=tk.Y)
+    side_holder.pack_propagate(False)
+    side = ctk.CTkScrollableFrame(side_holder, fg_color="transparent", corner_radius=0, width=190,
+                                  scrollbar_button_color=("#c3cad4", "#3a404b"), scrollbar_button_hover_color=GREEN)
+    side.pack(fill=tk.BOTH, expand=True)
     brand = ctk.CTkFrame(side, fg_color="transparent")
     brand.pack(fill=tk.X, padx=14, pady=(16, 10))
     ctk.CTkLabel(brand, text="", image=logo_ctk(36)).pack(side=tk.LEFT)
@@ -123,11 +128,8 @@ def open_settings_window(section=None):
         nav_btns[name] = b
 
     power_img = load_icon("icon_power.png", size=(20, 20))
-    ctk.CTkButton(side, text="" if power_img else "Close App Completely", image=power_img, font=("Segoe UI", 12, "bold"),
-                  fg_color="#e53935", hover_color="#c62828", command=force_quit_app, height=34).pack(side=tk.BOTTOM, fill=tk.X, padx=12, pady=14)
-    attach_tip(side.winfo_children()[-1], "Exit the program completely (stops downloads and the browser connection)")
     links_row = ctk.CTkFrame(side, fg_color="transparent")
-    links_row.pack(side=tk.BOTTOM, pady=(0, 2))
+    links_row.pack(pady=(14, 2))
     for ico, attr, tip in LINK_BUTTONS:
         lb = ctk.CTkButton(links_row, text="", image=icon_ctk(ico, 20), width=38, height=34, fg_color="transparent",
                            hover_color=("#d6e0f0", "#2f3846"), corner_radius=8, command=lambda a=attr: open_link(a, win))
@@ -137,6 +139,10 @@ def open_settings_window(section=None):
                        hover_color=("#d6e0f0", "#2f3846"), corner_radius=8, command=lambda: copy_share_link(sh))
     sh.pack(side=tk.LEFT, padx=2)
     attach_tip(sh, "Copy the program link to share it with others")
+    quit_btn = ctk.CTkButton(side, text="" if power_img else "Close App Completely", image=power_img, font=("Segoe UI", 12, "bold"),
+                             fg_color="#e53935", hover_color="#c62828", command=force_quit_app, height=34)
+    quit_btn.pack(fill=tk.X, padx=12, pady=(6, 14))
+    attach_tip(quit_btn, "Exit the program completely (stops downloads and the browser connection)")
 
     # ------------------------------------------------------------------ أدوات بناء مشتركة
     def card(page, title, icon=None):
@@ -213,7 +219,7 @@ def open_settings_window(section=None):
 
     # ================================================================== General
     def build_general(p):
-        c = card(p, "Appearance", "gears")
+        c = card(p, "Appearance", "palette")
         ctk.CTkOptionMenu(c, variable=ctk.StringVar(value=get_setting("theme", "Dark")), values=["Dark", "Light"],
                           command=update_main_theme, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=16, pady=(0, 12))
 
@@ -427,8 +433,11 @@ def open_settings_window(section=None):
                              text_color=GREEN if ok else "#FF9800")
             st.after(3000, refresh_status)
         refresh_status()
-        note(c, "Load the extension folder in your browser (chrome://extensions → Developer mode → Load unpacked). "
-                "Changes you make in this window reach the extension within about a minute.")
+        note(c, "Changes you make in this window reach the extension within about a minute.")
+        from aerograb.views.extsetup import show_extension_setup
+        ctk.CTkButton(c, text="  Connect your browser (step by step)", image=icon_ctk("puzzle", 18), compound="left", height=36, corner_radius=8,
+                      font=("Segoe UI", 12, "bold"), fg_color=GREEN, hover_color=GREEN_H,
+                      command=lambda: show_extension_setup(win)).pack(anchor="w", padx=16, pady=(0, 14))
 
         c = card(p, "Capturing downloads", "puzzle")
         switch(c, "Take over downloads started in the browser", "capture_enabled", True,

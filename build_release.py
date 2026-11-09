@@ -64,6 +64,42 @@ def bundle_ffmpeg(app_dir, arch):
     raise SystemExit("could not get ffmpeg: put ffmpeg.exe and ffprobe.exe next to build_release.py and run again")
 
 
+def bundle_node(app_dir, arch):
+    """بيحط node.exe (Node.js 22 LTS) جنب البرنامج: مشغّل JavaScript اللي يوتيوب محتاجه، فيشتغل من أول مرة من غير تنزيل."""
+    if os.name != "nt":
+        return
+    import hashlib
+    import io
+    import re
+    import urllib.request
+    import zipfile
+    local = os.path.join(ROOT, "node.exe")
+    if os.path.isfile(local):
+        shutil.copy2(local, app_dir)
+        return
+    plat = "win-x64" if arch == "x64" else "win-x86"
+    base = "https://nodejs.org/dist/latest-v22.x/"
+    try:
+        def get(u):
+            with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "aerograb-build"}), timeout=300) as r:
+                return r.read()
+        sums = get(base + "SHASUMS256.txt").decode("utf-8", "replace")
+        hit = re.search(rf"^([0-9a-f]{{64}})\s+(node-v22\.\d+\.\d+-{plat}\.zip)\s*$", sums, re.M)
+        if not hit:
+            raise RuntimeError(f"no {plat} build in latest-v22.x")
+        data = get(base + hit.group(2))
+        if hashlib.sha256(data).hexdigest() != hit.group(1):
+            raise RuntimeError("checksum mismatch")
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            member = next(n for n in z.namelist() if n.lower().endswith("/node.exe"))
+            with open(os.path.join(app_dir, "node.exe"), "wb") as f:
+                f.write(z.read(member))
+        print(f"bundled {hit.group(2)}")
+    except Exception as e:
+        # مش قاتل: البرنامج لسه بينزّل المشغّل لوحده أول مرة لو مش موجود
+        print(f"WARNING: could not bundle node.exe ({e}); the app will download it on first run")
+
+
 def main():
     try:
         import yt_dlp  # noqa: F401
@@ -82,6 +118,7 @@ def main():
     app_dir = os.path.join(dist, "AeroGrab")
     arch = "x64" if sys.maxsize > 2 ** 32 else "x86"           # بايثون 64-bit يطلع x64، و 32-bit يطلع x86
     bundle_ffmpeg(app_dir, arch)
+    bundle_node(app_dir, arch)
     ext_src = os.path.join(ROOT, "extension")
     if os.path.isdir(ext_src):
         shutil.rmtree(os.path.join(app_dir, "extension"), ignore_errors=True)

@@ -378,7 +378,7 @@ class CardGrid:
         conns = int(t.get("conns") or 0)
         if conns > 1:
             parts += [("text", "     "), ("icon", "bolt"), ("text", f"{conns} connections")]
-        desc = t.get("fmt_desc")
+        desc = re.sub(r"\s*·\s*(H\.264|HEVC|AV1|VP9|VP8)\b", "", t.get("fmt_desc") or "")       # تحميلات قديمة محفوظة بالكودك: نشيله
         if desc:
             parts += [("text", "     "), ("icon", "video"), ("text", desc)]
         elif t.get("direct") is False and t.get("quality") and not conns:

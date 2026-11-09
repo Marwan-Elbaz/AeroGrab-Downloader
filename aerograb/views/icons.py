@@ -16,7 +16,9 @@ _ICON_B64.update(EXTRA_ICONS)
 _ICON_NAVY = {"bolt", "caret_down", "caret_up", "info", "file", "drive", "link", "plug",
               "alarm", "floppy", "gears", "globe", "puzzle", "toolbox", "update", "video",
               "comment", "cookie", "copyright", "export", "github", "language", "search", "share", "youtube",
-              "bell", "gauge"}     # غامقة: بتتفتّح في الثيم الغامق
+              "bell", "gauge", "palette"}     # غامقة: بتتفتّح في الثيم الغامق
+
+_ICON_GRAY = {"settings_gear"}     # رمادي فاتح: بيتغمّق في الثيم الفاتح عشان يبان
 
 _ICON_LIGHT = (205, 214, 226)
 
@@ -88,6 +90,10 @@ def icon_pil(name, px, dark=None, dim=False):
         a = im.getchannel("A")
         im = Image.new("RGBA", im.size, _ICON_LIGHT + (255,))
         im.putalpha(a)
+    if not dark and name in _ICON_GRAY:
+        a = im.getchannel("A")
+        im = Image.new("RGBA", im.size, (84, 94, 108, 255))
+        im.putalpha(a)
     if dim:
         a = im.getchannel("A").point(lambda v: int(v * 0.45))
         im.putalpha(a)
@@ -123,7 +129,7 @@ CARD_MIN_W, CARD_H, CARD_GAP = 340, 164, 12
 
 EMOJI_FONT = "Segoe UI Emoji" if IS_WINDOWS else UI_FONT
 
-STAT_META = {"act": ("download", "Active"), "queue": ("hourglass", "Queued"), "done": ("check", "Completed"), "fail": ("warn", "Failed")}
+STAT_META = {"act": ("download", "Active"), "queue": ("hourglass", "Queued"), "done": ("tick", "Completed"), "fail": ("warn", "Failed")}
 
 STATE_OF = {"completed": "done", "downloading": "act", "starting": "act", "merging": "merge", "queued": "queue",
             "paused": "pause", "error": "err", "canceled": "err", "deleted": "err"}

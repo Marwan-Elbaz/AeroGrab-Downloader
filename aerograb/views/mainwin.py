@@ -2,6 +2,7 @@
 import os
 import sys
 import re
+import time
 import subprocess
 from PIL import Image
 import customtkinter as ctk
@@ -63,6 +64,11 @@ def update_main_theme(mode):
         gui.tree.tag_configure("canceled", foreground=c_canc)
         gui.tree.tag_configure("error", foreground=c_err)
         gui.tree.tag_configure("deleted", foreground=c_err)
+        try:
+            from aerograb.views.statusicons import refresh_all
+            refresh_all()                                    # أيقونات الحالة تتبدّل مع الثيم
+        except Exception as _e:
+            log_error("status icons theme", _e)
     try:
         if gui.cards is not None:
             gui.cards.apply_theme()
@@ -357,39 +363,118 @@ def redownload_selected():
 
 
 
+def _win_scale(win):
+    """تكبير الشاشة (125% / 150% ...) كما يشوفه Tk، عشان نحسب أبعاد النافذة بالبكسل الفعلي."""
+    try:
+        return max(1.0, float(win.winfo_fpixels("1i")) / 96.0)
+    except Exception:
+        return 1.0
+
+
+_STATE_COLOR = {"completed": "#2cc985", "paused": "#e0a800", "error": "#e53935", "canceled": "#e53935", "deleted": "#e53935",
+                "downloading": "#3b82f6", "merging": "#3b82f6", "starting": "#3b82f6", "queued": "#8b95a3"}
+
+
 def open_properties_selected():
     sel = _selected_tasks()
     if not sel:
         return
     iid, t = sel[0]
+    from aerograb.views.icons import CHIP_TEXT, icon_ctk
+    from aerograb.views.statusicons import STATUS_ICON
+    card_bg = ("#eef1f5", "#1b1f26")
+    muted = ("#5f6b7a", "#98a2ad")
     win = ctk.CTkToplevel(gui.root)
+    win.withdraw()
     apply_window_icon(win)
     win.title("Properties")
-    win.geometry("560x430")
-    win.attributes("-topmost", True)
-    win.after(500, lambda: win.attributes("-topmost", False))
-    rows = [("Name", t["title"]), ("Status", t["status_text"]), ("Size", t["size"]), ("Added", t["date"]),
-            ("Quality", t["quality"]), ("Saved to", t.get("file_path") or t.get("save_path") or "-"),
-            ("Referer", t.get("referer") or "-")]
+    win.resizable(False, False)
+    fp = t.get("file_path")
+    st = t.get("status", "")
+
+    # ---- الرأس: صورة + العنوان + الحالة
+    head = ctk.CTkFrame(win, corner_radius=14, fg_color=card_bg)
+    head.pack(fill=tk.X, padx=16, pady=(16, 10))
+    kind, ext = task_kind(t)
+    url0 = t.get("thumb")
+    pil = _thumb_mem[url0] if (url0 and _thumb_mem.get(url0)) else make_type_icon(kind, ext)
+    img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(112, 63))
+    pic = ctk.CTkLabel(head, image=img, text="")
+    pic.image = img
+    pic.pack(side=tk.LEFT, padx=(14, 12), pady=14)
+    col = ctk.CTkFrame(head, fg_color="transparent")
+    col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 14), pady=12)
+    ctk.CTkLabel(col, text=_shorten(t["title"], 110), font=(UI_FONT, 14, "bold"), anchor="w", justify="left",
+                 wraplength=360).pack(fill=tk.X)
+    chip = ctk.CTkFrame(col, fg_color="transparent")
+    chip.pack(anchor="w", pady=(8, 0))
+    scol = _STATE_COLOR.get(st, "#8b95a3")
+    ctk.CTkLabel(chip, text="", image=icon_ctk(STATUS_ICON.get(st, "info"), 16)).pack(side=tk.LEFT)
+    ctk.CTkLabel(chip, text=CHIP_TEXT.get(st, st.title()), font=(UI_FONT, 12, "bold"), text_color=scol).pack(side=tk.LEFT, padx=(6, 12))
+    if t.get("size") and str(t["size"]) not in ("-", ""):
+        ctk.CTkLabel(chip, text="", image=icon_ctk("drive", 16)).pack(side=tk.LEFT)
+        ctk.CTkLabel(chip, text=str(t["size"]), font=(UI_FONT, 12), text_color=muted).pack(side=tk.LEFT, padx=(6, 0))
+
+    # ---- التفاصيل
+    rows = [("info", "Status", t["status_text"] or "-"),
+            ("alarm", "Added", t["date"] or "-"),
+            ("video", "Quality", t["quality"] or "-"),
+            ("folder", "Saved to", fp or t.get("save_path") or "-"),
+            ("globe", "Referer", t.get("referer") or "-")]
     if t.get("clip_start") is not None or t.get("clip_end") is not None:
-        rows.insert(5, ("Part", f"{fmt_hms(t.get('clip_start') or 0)} → {fmt_hms(t['clip_end']) if t.get('clip_end') is not None else 'end'}"))
-    grid = ctk.CTkFrame(win, fg_color="transparent")
-    grid.pack(fill=tk.X, padx=18, pady=(16, 6))
-    for r, (k, v) in enumerate(rows):
-        ctk.CTkLabel(grid, text=k, font=(UI_FONT, 12, "bold"), text_color=("#666", "#9a9a9a"), anchor="w", width=80).grid(row=r, column=0, sticky="nw", pady=3)
-        ctk.CTkLabel(grid, text=_shorten(v, 70), font=(UI_FONT, 12), anchor="w", wraplength=400, justify="left").grid(row=r, column=1, sticky="w", padx=8, pady=3)
-    ctk.CTkLabel(win, text="Link", font=(UI_FONT, 12, "bold"), text_color=("#666", "#9a9a9a"), anchor="w").pack(fill=tk.X, padx=18)
-    box = ctk.CTkTextbox(win, height=80, font=(UI_FONT, 11), wrap="char")
-    box.pack(fill=tk.X, padx=18, pady=(2, 10))
+        rows.insert(3, ("bolt", "Part", f"{fmt_hms(t.get('clip_start') or 0)} → {fmt_hms(t['clip_end']) if t.get('clip_end') is not None else 'end'}"))
+    info = ctk.CTkFrame(win, corner_radius=14, fg_color=card_bg)
+    info.pack(fill=tk.X, padx=16, pady=(0, 10))
+    for n, (ico, k, v) in enumerate(rows):
+        r = ctk.CTkFrame(info, fg_color="transparent")
+        r.pack(fill=tk.X, padx=14, pady=(10 if n == 0 else 5, 10 if n == len(rows) - 1 else 5))
+        ctk.CTkLabel(r, text="", image=icon_ctk(ico, 16), width=22).pack(side=tk.LEFT, anchor="n", pady=1)
+        ctk.CTkLabel(r, text=k, font=(UI_FONT, 12, "bold"), text_color=muted, width=78, anchor="w").pack(side=tk.LEFT, anchor="n", padx=(6, 0))
+        ctk.CTkLabel(r, text=_shorten(v, 90), font=(UI_FONT, 12), anchor="w", justify="left", wraplength=380).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
+        if n < len(rows) - 1:
+            ctk.CTkFrame(info, height=1, fg_color=("#dde2e9", "#262b34")).pack(fill=tk.X, padx=14)
+
+    # ---- الرابط
+    lk = ctk.CTkFrame(win, corner_radius=14, fg_color=card_bg)
+    lk.pack(fill=tk.X, padx=16, pady=(0, 10))
+    top = ctk.CTkFrame(lk, fg_color="transparent")
+    top.pack(fill=tk.X, padx=14, pady=(10, 4))
+    ctk.CTkLabel(top, text="", image=icon_ctk("link", 16), width=22).pack(side=tk.LEFT)
+    ctk.CTkLabel(top, text="Link", font=(UI_FONT, 12, "bold"), text_color=muted).pack(side=tk.LEFT, padx=(6, 0))
+    box = ctk.CTkTextbox(lk, height=58, font=(UI_FONT, 11), wrap="char", corner_radius=10, fg_color=("#ffffff", "#14161a"))
+    box.pack(fill=tk.X, padx=12, pady=(0, 12))
     box.insert("1.0", t["url"])
     box.configure(state="disabled")
-    row = ctk.CTkFrame(win, fg_color="transparent")
-    row.pack(pady=6)
-    ctk.CTkButton(row, text="🔗 Copy link", width=120, fg_color=GREEN, hover_color=GREEN_H,
-                  command=lambda: (copy_links_selected(), win.lift())).pack(side=tk.LEFT, padx=6)
-    ctk.CTkButton(row, text="📁 Open folder", width=120, fg_color="gray40",
-                  command=lambda: reveal_in_folder(t.get("file_path"), t.get("save_path"))).pack(side=tk.LEFT, padx=6)
-    ctk.CTkButton(row, text="Close", width=90, fg_color="gray30", command=win.destroy).pack(side=tk.LEFT, padx=6)
+
+    # ---- الأزرار
+    btns = ctk.CTkFrame(win, fg_color="transparent")
+    btns.pack(fill=tk.X, padx=16, pady=(0, 16))
+
+    def b(text, ico, cmd, primary=False):
+        kw = dict(fg_color=GREEN, hover_color=GREEN_H, text_color="white") if primary else \
+            dict(fg_color=("#dfe5ec", "#2a303a"), hover_color=("#cfd7e1", "#37404d"), text_color=("#1a1a1a", "#e8eaed"))
+        ctk.CTkButton(btns, text="  " + text, image=icon_ctk(ico, 16), compound="left", height=36, corner_radius=10,
+                      font=(UI_FONT, 12, "bold"), command=cmd, **kw).pack(side=tk.LEFT, padx=(0, 8), expand=True, fill=tk.X)
+
+    def copy_link():
+        copy_links_selected()
+        win.lift()
+    if st == "completed" and fp and os.path.exists(fp):
+        b("Open", "file", lambda: open_path(fp), primary=True)
+    b("Copy link", "link", copy_link, primary=not (st == "completed" and fp and os.path.exists(fp)))
+    b("Open folder", "folder", lambda: reveal_in_folder(fp, t.get("save_path")))
+    b("Close", "remove", win.destroy)
+
+    win.update_idletasks()
+    s = _win_scale(win)
+    w, h = int(round(620 * s)), win.winfo_reqheight()
+    x = gui.root.winfo_rootx() + max(0, (gui.root.winfo_width() - w) // 2)
+    y = max(0, gui.root.winfo_rooty() + (gui.root.winfo_height() - h) // 3)
+    tk.Toplevel.geometry(win, f"{w}x{h}+{x}+{y}")                  # بالبكسل الفعلي (geometry بتاعة ctk كانت هتضرب في التكبير تاني)
+    win.deiconify()
+    win.attributes("-topmost", True)
+    win.after(500, lambda: win.winfo_exists() and win.attributes("-topmost", False))
+    win.focus_force()
 
 
 
@@ -444,34 +529,32 @@ def show_toast(item_id):
     if not t:
         return
     try:
+        from aerograb.views.icons import icon_ctk
+        from aerograb.winround import round_window
         if _toast["win"] is not None:
             try:
                 _toast["win"].destroy()
             except Exception:
                 pass
+        is_dark = ctk.get_appearance_mode() == "Dark"
+        bg = "#1b1f26" if is_dark else "#ffffff"
+        bd = "#2f3846" if is_dark else "#d3dae3"
+        muted = ("#5f6b7a", "#98a2ad")
         win = ctk.CTkToplevel(gui.root)
+        win.withdraw()
+        win._deactivate_windows_window_header_manipulation = True
         apply_window_icon(win)
         _toast["win"] = win
         win.overrideredirect(True)
         win.attributes("-topmost", True)
-        w, h = 390, 108
-        win.geometry(f"{w}x{h}+{gui.root.winfo_screenwidth() - w - 18}+{gui.root.winfo_screenheight() - h - 74}")
+        win.configure(fg_color=bd)
         kind, ext = task_kind(t)
         url = t.get("thumb")
         pil = _thumb_mem[url] if (url and _thumb_mem.get(url)) else make_type_icon(kind, ext)
-        img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(96, 54))
-        frame = ctk.CTkFrame(win, corner_radius=12, border_width=2, border_color=GREEN)
-        frame.pack(fill="both", expand=True)
-        pic = ctk.CTkLabel(frame, image=img, text="")
-        pic.image = img
-        pic.pack(side="left", padx=(12, 8), pady=12)
-        col = ctk.CTkFrame(frame, fg_color="transparent")
-        col.pack(side="left", fill="both", expand=True, pady=8, padx=(0, 6))
-        ctk.CTkLabel(col, text="✔  Download complete", font=(UI_FONT, 12, "bold"), text_color=GREEN, anchor="w").pack(fill="x")
-        ctk.CTkLabel(col, text=_shorten(t["title"], 38), font=(UI_FONT, 11), anchor="w").pack(fill="x")
+        img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(104, 58))
+        frame = ctk.CTkFrame(win, corner_radius=0, border_width=0, fg_color=bg)
+        frame.pack(fill="both", expand=True, padx=1, pady=1)
         fp = t.get("file_path")
-        row = ctk.CTkFrame(col, fg_color="transparent")
-        row.pack(anchor="w", pady=(6, 0))
 
         def close(*_):
             try:
@@ -479,12 +562,70 @@ def show_toast(item_id):
             except Exception:
                 pass
 
-        ctk.CTkButton(row, text="Open", width=64, height=26, font=(UI_FONT, 11), fg_color=GREEN, hover_color=GREEN_H,
-                      command=lambda: (fp and os.path.exists(fp) and open_path(fp), close())).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(row, text="Folder", width=64, height=26, font=(UI_FONT, 11), fg_color="gray40",
-                      command=lambda: (reveal_in_folder(fp, t.get("save_path")), close())).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(row, text="✕", width=30, height=26, font=(UI_FONT, 11), fg_color="gray30", command=close).pack(side="left")
-        win.after(9000, close)
+        # شريط جانبي أخضر + صورة + نص
+        ctk.CTkFrame(frame, width=5, height=10, corner_radius=0, fg_color=GREEN).pack(side="left", fill="y")
+        pic = ctk.CTkLabel(frame, image=img, text="")
+        pic.image = img
+        pic.pack(side="left", padx=(12, 10), pady=12, anchor="n")
+        col = ctk.CTkFrame(frame, fg_color="transparent")
+        col.pack(side="left", fill="both", expand=True, pady=(10, 10), padx=(0, 6))
+        head = ctk.CTkFrame(col, fg_color="transparent")
+        head.pack(fill="x")
+        ctk.CTkLabel(head, text="", image=icon_ctk("tick", 16)).pack(side="left")
+        ctk.CTkLabel(head, text="Download complete", font=(UI_FONT, 12, "bold"), text_color=GREEN, anchor="w").pack(side="left", padx=(6, 0))
+        x_btn = ctk.CTkButton(head, text="", image=icon_ctk("cross", 12), width=24, height=24, corner_radius=12, fg_color="transparent",
+                              hover_color=("#e6eaf0", "#2a303a"), command=close)
+        x_btn.pack(side="right")
+        ctk.CTkLabel(col, text=_shorten(t["title"], 44), font=(UI_FONT, 12, "bold"), anchor="w", justify="left").pack(fill="x", pady=(4, 0))
+        size_txt = str(t.get("size") or "")
+        if size_txt and size_txt not in ("-",):
+            sr = ctk.CTkFrame(col, fg_color="transparent")
+            sr.pack(fill="x", pady=(2, 0))
+            ctk.CTkLabel(sr, text="", image=icon_ctk("drive", 14)).pack(side="left")
+            ctk.CTkLabel(sr, text=size_txt, font=(UI_FONT, 11), text_color=muted).pack(side="left", padx=(5, 0))
+        row = ctk.CTkFrame(col, fg_color="transparent")
+        row.pack(anchor="w", pady=(8, 0))
+
+        def tb(text, ico, cmd, primary=False):
+            kw = dict(fg_color=GREEN, hover_color=GREEN_H, text_color="white") if primary else \
+                dict(fg_color=("#e6eaf0", "#2a303a"), hover_color=("#d6dde6", "#37404d"), text_color=("#1a1a1a", "#e8eaed"))
+            ctk.CTkButton(row, text="  " + text, image=icon_ctk(ico, 14), compound="left", width=84, height=28, corner_radius=8,
+                          font=(UI_FONT, 11, "bold"), command=cmd, **kw).pack(side="left", padx=(0, 6))
+        tb("Open", "file", lambda: (fp and os.path.exists(fp) and open_path(fp), close()), primary=True)
+        tb("Folder", "folder", lambda: (reveal_in_folder(fp, t.get("save_path")), close()))
+
+        # شريط رفيع بيقصر مع الوقت: يوضّح إن الإشعار هيقفل لوحده
+        bar = ctk.CTkFrame(win, height=3, corner_radius=0, fg_color=GREEN)
+        life = 9000
+
+        win.update_idletasks()
+        s = _win_scale(win)
+        w, h = int(round(410 * s)), max(win.winfo_reqheight(), int(round(112 * s)))
+        sw, sh = gui.root.winfo_screenwidth(), gui.root.winfo_screenheight()
+        x, y = sw - w - int(18 * s), sh - h - int(74 * s)
+        tk.Toplevel.geometry(win, f"{w}x{h}+{x}+{y}")
+        win.update_idletasks()
+        round_window(win, w, h, int(14 * s), bd)
+        win.attributes("-alpha", 0.0)
+        win.deiconify()
+        bar.place(x=1, rely=1.0, y=-4, anchor="sw", relwidth=1.0)
+        t0 = time.perf_counter()
+
+        def tick():
+            if not win.winfo_exists():
+                return
+            el = (time.perf_counter() - t0) * 1000
+            try:
+                win.attributes("-alpha", min(1.0, el / 180))         # ظهور تدريجي
+                left = max(0.0, 1.0 - el / life)
+                bar.place_configure(relwidth=max(0.001, left) * 0.985)
+            except Exception:
+                return
+            if el >= life:
+                close()
+            else:
+                win.after(40, tick)
+        tick()
     except Exception as e:
         log_error("show_toast", e)
 

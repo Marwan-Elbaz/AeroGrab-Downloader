@@ -8,3 +8,8 @@ release/
 venv/
 .idea/
 .vscode/
+
+# ملفات ضخمة بتتجمّع وقت البناء مش في المستودع (حد GitHub = 100MB للملف)
+ffmpeg.exe
+ffprobe.exe
+node.exe

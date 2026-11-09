@@ -49,6 +49,11 @@ Everything you need to fill after uploading is in **`aerograb/links.py`** – pa
    `.github/workflows/release.yml` builds Windows 64-bit (`-x64.zip`) and 32-bit (`-x86.zip`) on GitHub and attaches both to a new Release (no need to build locally).
    Installed copies update with the zip that matches their own bitness. On 32-bit Windows (no Deno build) the program downloads Node.js 22 (win-x86, SHA-256 verified) as the YouTube JavaScript engine instead.
 
+## What the build bundles / اللي بيتجمّع مع البرنامج
+`build_release.py` puts `ffmpeg.exe`, `ffprobe.exe` and `node.exe` (Node.js 22, for YouTube) next to the program, so everything works right after install.
+They are downloaded at build time (never committed to git: GitHub limits files to 100 MB). To use your own copies, put them next to `build_release.py`.
+ffmpeg builds are GPL: mention it in your release notes when you distribute.
+
 ## Installer / المثبّت
 `installer.iss` (Inno Setup 6.3+) builds `AeroGrab-<ver>-x64-Setup.exe` and `-x86-Setup.exe`: per-user install (no admin), Start menu + optional desktop shortcut,
 uninstaller in Apps & features (asks whether to delete settings/history, never the downloads). GitHub Actions builds it automatically next to the zips.

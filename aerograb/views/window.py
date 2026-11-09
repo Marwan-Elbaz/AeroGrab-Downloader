@@ -11,6 +11,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 import tkinter as tk
 from tkinter import ttk
+from PIL import ImageTk
 from aerograb import i18n
 from aerograb.winround import round_window
 from aerograb.common import get_setting, log_error, resource_path, save_settings
@@ -150,7 +151,7 @@ def main_gui(initial_items=None):
     tb_btn("Pause all", pause_all_tasks, width=116, ico="pause", tip="Pause all running downloads")
     tb_btn("Cancel all", cancel_all_tasks, danger=True, width=116, ico="remove", tip="Cancel all running and queued downloads")
     tb_btn("Clear list", clear_list, width=118, ico="trash", tip="Remove finished downloads from the list (files stay on disk)")
-    tb_btn("Settings" if load_icon("icon_settings.png") else "⚙  Settings", open_settings_window, side=tk.RIGHT, width=118, icon="icon_settings.png",
+    tb_btn("Settings", open_settings_window, side=tk.RIGHT, width=118, ico="settings_gear",
            tip="Open settings: theme, save folder, speed limit, connections...")
 
     def show_usage_menu(anchor):
@@ -253,7 +254,9 @@ def main_gui(initial_items=None):
     tree_container.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
 
     cols = ("Title", "Type", "Size", "Progress", "Speed", "ETA", "Status", "Date", "Folder")
-    gui.tree = ttk.Treeview(tree_container, columns=cols, show="headings", height=8, selectmode="extended")
+    gui.tree = ttk.Treeview(tree_container, columns=cols, show="tree headings", height=8, selectmode="extended")
+    gui.tree.heading("#0", text="")
+    gui.tree.column("#0", width=44, minwidth=44, stretch=False, anchor=tk.CENTER)       # عمود أيقونة الحالة
     for col, w, anc in (("Title", 250, tk.W), ("Type", 86, tk.CENTER), ("Size", 92, tk.CENTER), ("Progress", 62, tk.CENTER),
                         ("Speed", 96, tk.CENTER), ("ETA", 70, tk.CENTER), ("Status", 220, tk.W), ("Date", 100, tk.CENTER),
                         ("Folder", 170, tk.W)):
@@ -406,76 +409,72 @@ def main_gui(initial_items=None):
             SEP,
             ("Delete File From Device", "trash", red, H_RED, delete_file_from_disk_selected),
         ]
-        w = 236
-        pick = (lambda c: (c[1] if is_dark else c[0]) if isinstance(c, tuple) else c)     # ألوان ثابتة حسب الثيم (أضمن داخل النوافذ الشفافة)
+        pick = (lambda c: (c[1] if is_dark else c[0]) if isinstance(c, tuple) else c)     # ألوان ثابتة حسب الثيم
         bg = "#1e2025" if is_dark else "#f6f7f9"
         bd = "#3a404b" if is_dark else "#c5cbd5"
-        menu = ctk.CTkToplevel(gui.root)
+        sep_c = "#343a45" if is_dark else "#d3d7de"
+        # القايمة مبنية بمكونات Tk العادية (مش CTk): أبسط وأضمن على ويندوز، والضغطة بتتنفّذ عند رفع الإصبع من الزرار نفسه.
+        menu = tk.Toplevel(gui.root)
         ctx["menu"] = menu
         menu.withdraw()                                   # منظهرهاش إلا بعد ما نحسب الارتفاع الحقيقي
-        menu._deactivate_windows_window_header_manipulation = True     # مفيش شريط عنوان: ctk ميلعبش في إخفاء/إظهار النافذة
         menu.overrideredirect(True)
         menu.attributes("-topmost", True)
-        menu.configure(fg_color=bd)                       # أي بكسل على الحافة بيتمزج مع لون الإطار: مفيش هالة
-        frame = ctk.CTkFrame(menu, corner_radius=11, border_width=1, border_color=bd, fg_color=bg, bg_color=bd)
-        frame.pack(fill="both", expand=True)
+        menu.configure(bg=bd)                             # إطار 1 بكسل
+        body = tk.Frame(menu, bg=bg)
+        body.pack(fill="both", expand=True, padx=1, pady=1)
+        menu._imgs = []
+        try:
+            s = max(1.0, float(menu.winfo_fpixels("1i")) / 96.0)        # تكبير الشاشة (125% / 150% ...)
+        except Exception:
+            s = 1.0
 
-        def make_btn(text, icon_name, tcolor, hcolor, cmd, compact):
-            def on_click(event=None):
-                close_ctx()
-                gui.root.after(50, cmd)
-            b = ctk.CTkButton(frame, text="  " + text, image=icon_ctk(icon_name, 16), compound="left", text_color=pick(tcolor),
-                              font=("Segoe UI", 12, "bold"), fg_color="transparent", hover_color=pick(hcolor), anchor="w",
-                              corner_radius=6, command=on_click, height=24 if compact else 26)
-            b.pack(fill="x", padx=6, pady=1 if compact else 3)
+        def run(cmd):
+            close_ctx()
+            gui.root.after(30, cmd)
+
+        def make_item(text, icon_name, tcolor, hcolor, cmd, compact):
+            img = ImageTk.PhotoImage(icon_pil(icon_name, int(round(16 * s))))
+            menu._imgs.append(img)                        # لازم نحتفظ بالصورة وإلا بتختفي
+            lbl = tk.Label(body, text="  " + text, image=img, compound="left", anchor="w", bg=bg, fg=pick(tcolor),
+                           font=("Segoe UI", 10, "bold"), padx=int(10 * s), pady=int((2 if compact else 5) * s), cursor="hand2")
+            lbl.pack(fill="x", padx=int(6 * s), pady=1)
+            hov = pick(hcolor)
+            lbl.bind("<Enter>", lambda ev: lbl.configure(bg=hov))
+            lbl.bind("<Leave>", lambda ev: lbl.configure(bg=bg))
+            lbl.bind("<ButtonRelease-1>", lambda ev: run(cmd))
 
         def build(compact):
-            for child in frame.winfo_children():
+            for child in body.winfo_children():
                 child.destroy()
-            pad = 4 if compact else 5
-            ctk.CTkFrame(frame, height=pad, fg_color="transparent").pack(fill="x")      # حشو علوي = حشو سفلي
+            menu._imgs.clear()
+            tk.Frame(body, height=int((3 if compact else 5) * s), bg=bg).pack(fill="x")
             for ent in entries:
                 if ent is SEP:
-                    ctk.CTkFrame(frame, height=1, fg_color=pick(("#d3d7de", "#343a45"))).pack(fill="x", padx=12, pady=1 if compact else 2)
+                    tk.Frame(body, height=1, bg=sep_c).pack(fill="x", padx=int(12 * s), pady=int((1 if compact else 3) * s))
                 else:
-                    make_btn(*ent, compact)
-            ctk.CTkFrame(frame, height=pad, fg_color="transparent").pack(fill="x")
+                    make_item(*ent, compact)
+            tk.Frame(body, height=int((3 if compact else 5) * s), bg=bg).pack(fill="x")
             menu.update_idletasks()
-            return frame.winfo_reqheight()               # الارتفاع من المحتوى الفعلي: مفيش مساحة فاضية تحت
+            return body.winfo_reqheight() + 2             # الارتفاع من المحتوى الفعلي: مفيش مساحة فاضية تحت
 
-        try:
-            scale = float(menu._get_window_scaling())                   # تكبير الشاشة (125% / 150% ...)
-        except Exception:
-            scale = 1.0
-        w_px = int(round(w * scale))
+        w_px = int(round(236 * s))
         sw, sh = gui.root.winfo_screenwidth(), gui.root.winfo_screenheight()
-        margin = int(48 * scale)                          # مكان شريط المهام تحت
+        margin = int(48 * s)                              # مكان شريط المهام تحت
         h = build(False)
         if e.y_root + h > sh - margin:                    # مفيش مكان تحت المؤشر: نصغّر المسافات قبل ما نفكر نحرّك القايمة
             h = build(True)
-        x = max(0, min(e.x_root, sw - w_px - 4))
-        y = max(0, min(e.y_root, sh - margin - h))        # بتفتح لتحت دايماً من مكان الضغطة؛ لو الشاشة قصيرة جداً بتتزحزح بالقدر اللازم بس
-        # h و sh و x و y بالبكسل الفعلي، فنستخدم geometry بتاعة tk مباشرة (بتاعة ctk كانت هتضرب الأبعاد في تكبير الشاشة تاني)
-        tk.Toplevel.geometry(menu, f"{w_px}x{h}+{x}+{y}")
+        x = max(0, min(e.x_root + 2, sw - w_px - 4))
+        y = max(0, min(e.y_root + 2, sh - margin - h))    # بتفتح لتحت دايماً من مكان الضغطة؛ لو الشاشة قصيرة جداً بتتزحزح بالقدر اللازم بس
+        menu.geometry(f"{w_px}x{h}+{x}+{y}")
         menu.update_idletasks()
-        mode = round_window(menu, w_px, h, int(12 * scale), bd)       # حواف منحنية (ويندوز 11: من النظام، ويندوز 10: قصّ للنافذة)
-        if mode == "dwm":
-            frame.configure(corner_radius=0, border_width=0)            # النظام بيرسم الحافة والإطار بنفسه
-        elif mode is None:
-            frame.configure(corner_radius=0)                            # بره ويندوز: مربعة ونضيفة
+        round_window(menu, w_px, h, int(12 * s), bd)      # حواف منحنية (ويندوز 11: من النظام، ويندوز 10: قصّ للنافذة)
         menu.deiconify()
-        menu.bind("<Escape>", close_ctx)
-        menu.focus_force()
-
-        def close_on_focus_loss(ev):
-            if ev.widget is menu:                         # الضغط على برنامج تاني بيقفل القايمة
-                close_ctx()
-        menu.after(200, lambda: ctx["menu"] is menu and menu.bind("<FocusOut>", close_on_focus_loss))
+        menu.lift()
 
     gui.tree.bind("<Button-3>", lambda e: (_sel_src.update(v="tree"), show_context_menu(e)))
     gui.root.bind("<Button-1>", close_ctx, add="+")
     gui.root.bind("<Escape>", close_ctx, add="+")
-    gui.root.bind("<Unmap>", close_ctx, add="+")
+    gui.root.bind("<Unmap>", lambda e: close_ctx() if e.widget is gui.root else None, add="+")
 
     def on_double_click(e, row=None, from_card=False):
         if row is None:
@@ -544,15 +543,23 @@ def main_gui(initial_items=None):
 
     gui.root.after(300, heartbeat)
     gui.root.after(1500, clip_tick)
-    def _prepare_js():                  # يوتيوب محتاج مشغّل JavaScript: نثبّت deno في الخلفية لو مش موجود
+    def _prepare_js():                  # يوتيوب محتاج مشغّل JavaScript: بننزّله تلقائياً في الخلفية (deno أو Node) ونعيد المحاولة لو النت واقع
         try:
             from aerograb.tools import has_js_runtime, install_deno
-            if not has_js_runtime():
-                install_deno()
+            for delay in (0, 20, 60, 180, 600, 1800):
+                if delay:
+                    time.sleep(delay)
+                if has_js_runtime(True):
+                    return
+                ok, _msg = install_deno()
+                if ok:
+                    return
         except Exception as e:
             log_error("prepare js runtime", e)
     threading.Thread(target=_prepare_js, daemon=True, name="aerograb-js-runtime").start()
     start_background_checks()           # التحديث التلقائي: بيفحص بعد ثواني من فتح البرنامج
+    from aerograb.views.extsetup import maybe_show_first_run
+    gui.root.after(2500, maybe_show_first_run)      # أول مرة: نافذة بتشرح ربط المتصفح بخطوات سهلة
 
     with gui_lock:
         gui.gui_running = True
@@ -590,7 +597,7 @@ from aerograb.server import shutdown_server  # noqa: E402
 from aerograb.tasks import load_history, save_history  # noqa: E402
 from aerograb.views.cards import CardGrid, card_action, dismiss_task, prio_tick, prioritize_task  # noqa: E402
 from aerograb.views.grabber import show_link_grabber  # noqa: E402
-from aerograb.views.icons import STAT_META, icon_ctk  # noqa: E402
+from aerograb.views.icons import STAT_META, icon_ctk, icon_pil  # noqa: E402
 from aerograb.limits import limiter  # noqa: E402
 from aerograb.views.mainwin import (
     AFTER_MODES,

@@ -79,9 +79,7 @@ def pct_text(t):
 
 
 def task_values(t):
-    text = tr(t["status_text"] or "")
-    if text and text[0] not in "⚠🗑✔⏳⬇⏸⚙✖🔌":
-        text = f"{STATUS_ICONS.get(t['status'], '')} {text}".strip()
+    text = re.sub(r"^[^\w(\"“]+", "", tr(t["status_text"] or ""))      # الأيقونة بقت صورة في أول عمود، فنشيل رمز الإيموجي من النص
     fp = t.get("file_path")
     folder = os.path.dirname(str(fp)) if fp else (t.get("save_path") or "")
     return (t["title"], tr(KIND_LABEL.get(task_kind_c(t)[0], "Other")), tr(str(t["size"])), pct_text(t), t["speed"], t["eta"],
@@ -115,7 +113,8 @@ def refresh_row(item_id):  # main thread
         vals = task_values(t)
         tag = t["status"] if t["status"] in ROW_TAGS else ""
     if gui.tree.exists(item_id):
-        gui.tree.item(item_id, values=vals, tags=(tag,) if tag else ())
+        from aerograb.views.statusicons import tree_image
+        gui.tree.item(item_id, values=vals, tags=(tag,) if tag else (), image=tree_image(t["status"]))
     if gui.cards is not None:
         gui.cards.refresh(item_id)
 
@@ -178,7 +177,8 @@ def load_history():
         # الرئيسية بتبدأ فاضية: اللي كان لسه شغال/متوقف يفضل ظاهر، والباقي بيروح للـ History
         t["dismissed"] = bool(data["dismissed"]) if "dismissed" in data else status != "paused"
         tag = status if status in ROW_TAGS else ""
-        item_id = gui.tree.insert("", "end", values=task_values(t), tags=(tag,) if tag else ())
+        from aerograb.views.statusicons import tree_image
+        item_id = gui.tree.insert("", "end", values=task_values(t), tags=(tag,) if tag else (), image=tree_image(status))
         tasks[item_id] = t
     global _prio_counter
     _prio_counter = itertools.count(int(max([t.get("prio", 0) for t in tasks.values()] or [0])) + 1)

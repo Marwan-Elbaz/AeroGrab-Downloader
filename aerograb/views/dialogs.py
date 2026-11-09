@@ -156,7 +156,8 @@ def show_verify_dialog(iid):
         try:
             h = compute(path, algo, lambda d, tot: ui(lambda: bar.set(d / tot if tot else 1)), stop.is_set)
         except Exception as e:
-            ui(lambda: (show_result(f"Could not read the file: {e}", "#e53935"), done()))
+            msg = f"Could not read the file: {e}"          # لازم نحفظ الرسالة: Python بيمسح e بعد الـ except والـ lambda بتشتغل بعدها
+            ui(lambda: (show_result(msg, "#e53935"), done()))
             return
         if h is None:
             return

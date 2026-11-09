@@ -3,7 +3,7 @@ import os
 import sys
 from aerograb.config import winreg
 from aerograb.common import get_setting, log_error, save_settings
-from aerograb.config import APP_NAME, FROZEN, HOME, IS_WINDOWS, MAIN_SCRIPT
+from aerograb.config import APP_NAME, BASE_DIR, FROZEN, HOME, IS_WINDOWS, MAIN_SCRIPT
 
 
 # ----------------------------------------------------------------------------- Startup / protocol (Windows)
@@ -53,9 +53,13 @@ def set_startup(enabled):
 def setup_startup():
     if IS_WINDOWS and os.path.exists(_legacy_startup_path()):      # ترقية من النسخة القديمة: ننقل التشغيل التلقائي للاسم الجديد
         set_startup(True)
-    if IS_WINDOWS and not get_setting("startup_setup_done"):
+    if IS_WINDOWS and not get_setting("startup_default_v2"):
+        # التشغيل مع ويندوز (في الخلفية) مفعّل تلقائياً: مرة واحدة بس، وبعدها اختيار المستخدم من الإعدادات بيتحترم
         if set_startup(True):
+            save_settings("startup_default_v2", True)
             save_settings("startup_setup_done", True)
+    elif IS_WINDOWS and os.path.exists(_startup_vbs_path()):
+        set_startup(True)                   # نحدّث مسار البرنامج في ملف التشغيل (لو البرنامج اتنقل أو اتحدّث)
 
 
 
@@ -87,3 +91,40 @@ def register_protocol():
                 winreg.SetValueEx(k, "", 0, winreg.REG_SZ, cmd)
         except Exception as e:
             log_error(f"register_protocol({scheme})", e)
+
+
+def _documents_dir():
+    """مجلد Documents الحقيقي (حتى لو منقول لـ OneDrive)."""
+    if IS_WINDOWS:
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(260)
+            if ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buf) == 0 and buf.value:     # CSIDL_PERSONAL
+                return buf.value
+        except Exception:
+            pass
+    return os.path.join(HOME, "Documents")
+
+
+def prepare_extension_folder():
+    """
+    بيجهّز مجلد إضافة المتصفح في مكان ظاهر وسهل (Documents\\AeroGrab Browser Extension) بدل مجلد البرنامج المخفي (AppData).
+    بيتحدّث تلقائياً لو الإضافة اتغيّرت. لو النسخ فشل بنرجّع المجلد الأصلي. بيرجّع المسار.
+    """
+    import filecmp
+    import shutil
+    src = os.path.join(BASE_DIR, "extension")
+    if not os.path.isdir(src):
+        return src
+    dst = os.path.join(_documents_dir(), "AeroGrab Browser Extension")
+    try:
+        def same(a, b):
+            fa = sorted(os.path.relpath(os.path.join(r, f), a) for r, _d, fs in os.walk(a) for f in fs)
+            fb = sorted(os.path.relpath(os.path.join(r, f), b) for r, _d, fs in os.walk(b) for f in fs)
+            return fa == fb and all(filecmp.cmp(os.path.join(a, f), os.path.join(b, f), shallow=False) for f in fa)
+        if not (os.path.isdir(dst) and same(src, dst)):
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        return dst
+    except Exception as e:
+        log_error("prepare_extension_folder", e)
+        return src

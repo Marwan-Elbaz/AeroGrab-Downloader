@@ -286,9 +286,11 @@ def install_deno(force=False):
         try:
             if has_js_runtime(True):
                 return True, "ready"
-            if _deno_state["tried"] and not force:
+            # المحاولة التلقائية بتتكرر (بعد 45 ثانية على الأقل من الفاشلة) بدل ما تقف للأبد: النت ممكن يكون لسه مفتحش وقت فتح البرنامج
+            if _deno_state["tried"] and not force and time.time() - _deno_state.get("t", 0) < 45:
                 return False, _deno_state["error"] or "failed before"
             _deno_state["tried"] = True
+            _deno_state["t"] = time.time()
             asset = _deno_asset()
             if not asset:                                    # ويندوز 32-bit: Node.js بدل Deno
                 return _install_node()
