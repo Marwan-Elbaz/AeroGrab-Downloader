@@ -75,10 +75,8 @@ def open_settings_window(section=None):
     apply_window_icon(win)
     _settings_win[0] = win
     win.title("Settings")
-    sw_, sh_ = win.winfo_screenwidth(), win.winfo_screenheight()
-    ww, wh = min(920, sw_ - 80), min(780, sh_ - 120)                    # أكبر قدر يناسب الشاشة (من غير ما تعدّي حجمها)
-    win.geometry(f"{ww}x{wh}+{max(0, (sw_ - ww) // 2)}+{max(0, (sh_ - wh) // 2 - 20)}")
-    win.minsize(min(760, ww), min(480, wh))
+    from aerograb.views.winutil import fit_geometry
+    fit_geometry(win, 920, 780, 760, 480)                    # أكبر قدر يناسب الشاشة (من غير ما تعدّي حجمها)
     win.attributes("-topmost", True)
     win.after(600, lambda: win.attributes("-topmost", False))
 
@@ -127,7 +125,7 @@ def open_settings_window(section=None):
         b.pack(fill=tk.X, padx=10, pady=2)
         nav_btns[name] = b
 
-    power_img = load_icon("icon_power.png", size=(20, 20))
+    power_img = icon_ctk("power", 18)
     links_row = ctk.CTkFrame(side, fg_color="transparent")
     links_row.pack(pady=(14, 2))
     for ico, attr, tip in LINK_BUTTONS:
@@ -139,8 +137,8 @@ def open_settings_window(section=None):
                        hover_color=("#d6e0f0", "#2f3846"), corner_radius=8, command=lambda: copy_share_link(sh))
     sh.pack(side=tk.LEFT, padx=2)
     attach_tip(sh, "Copy the program link to share it with others")
-    quit_btn = ctk.CTkButton(side, text="" if power_img else "Close App Completely", image=power_img, font=("Segoe UI", 12, "bold"),
-                             fg_color="#e53935", hover_color="#c62828", command=force_quit_app, height=34)
+    quit_btn = ctk.CTkButton(side, text="  Close App Completely", image=power_img, compound="left", font=("Segoe UI", 12, "bold"),
+                             fg_color="#e53935", hover_color="#c62828", command=force_quit_app, height=36)
     quit_btn.pack(fill=tk.X, padx=12, pady=(6, 14))
     attach_tip(quit_btn, "Exit the program completely (stops downloads and the browser connection)")
 
@@ -429,15 +427,34 @@ def open_settings_window(section=None):
                 when = "just now" if ago < 10 else (f"{ago} seconds ago" if ago < 90 else f"{ago // 60} minutes ago")
                 ok = (v == EXTENSION_VERSION) or not v
                 st.configure(text=f"●  Extension connected (version {v or '?'}), last contact {when}."
-                                  + ("" if ok else f"  Expected extension version {EXTENSION_VERSION}: update the extension files."),
+                                  + ("" if ok else f"  A newer extension ({EXTENSION_VERSION}) is available: press “Update extension” below."),
                              text_color=GREEN if ok else "#FF9800")
             st.after(3000, refresh_status)
         refresh_status()
         note(c, "Changes you make in this window reach the extension within about a minute.")
         from aerograb.views.extsetup import show_extension_setup
-        ctk.CTkButton(c, text="  Connect your browser (step by step)", image=icon_ctk("puzzle", 18), compound="left", height=36, corner_radius=8,
+        brow = ctk.CTkFrame(c, fg_color="transparent")
+        brow.pack(anchor="w", padx=16, pady=(0, 6))
+        ctk.CTkButton(brow, text="  Connect your browser (step by step)", image=icon_ctk("puzzle", 18), compound="left", height=36, corner_radius=8,
                       font=("Segoe UI", 12, "bold"), fg_color=GREEN, hover_color=GREEN_H,
-                      command=lambda: show_extension_setup(win)).pack(anchor="w", padx=16, pady=(0, 14))
+                      command=lambda: show_extension_setup(win)).pack(side=tk.LEFT, padx=(0, 8))
+        upd_lbl = ctk.CTkLabel(c, text="", font=("Segoe UI", 11), anchor="w", justify="left", wraplength=600)
+        upd_lbl.pack(fill=tk.X, padx=16, pady=(0, 14))
+
+        def update_extension():
+            from aerograb.system import prepare_extension_folder
+            folder = prepare_extension_folder()              # بينسخ أحدث ملفات للإضافة لمجلدها
+            v = ext_info.get("v", "")
+            if ext_info.get("t", 0) and v and v != EXTENSION_VERSION:
+                upd_lbl.configure(text=f"✔ Extension files updated ({EXTENSION_VERSION}). The browser extension reloads itself within about a minute. "
+                                       "If it does not, open the extensions page and press the ⟳ reload button on AeroGrab.", text_color=GREEN)
+            elif ext_info.get("t", 0):
+                upd_lbl.configure(text=f"✔ The extension is already up to date ({v or EXTENSION_VERSION}).", text_color=GREEN)
+            else:
+                upd_lbl.configure(text=f"✔ Extension files updated in:\n{folder}\nNow load or reload the extension in your browser (use “Connect your browser”).", text_color=GREEN)
+        ctk.CTkButton(brow, text="  Update extension", image=icon_ctk("update", 18), compound="left", height=36, corner_radius=8,
+                      font=("Segoe UI", 12, "bold"), fg_color=("#dfe5ec", "#2a303a"), hover_color=("#cfd7e1", "#37404d"),
+                      text_color=("#1a1a1a", "#e8eaed"), command=update_extension).pack(side=tk.LEFT)
 
         c = card(p, "Capturing downloads", "puzzle")
         switch(c, "Take over downloads started in the browser", "capture_enabled", True,

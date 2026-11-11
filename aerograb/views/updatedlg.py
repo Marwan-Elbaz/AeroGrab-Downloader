@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import messagebox
 from aerograb import updater
 from aerograb.common import log_error, save_settings
+from aerograb.views.winutil import fit_geometry
 from aerograb.config import APP_NAME, APP_VERSION, UI_FONT
 from aerograb.fmt import fmt_bytes
 from aerograb.state import ui
@@ -50,7 +51,7 @@ def manual_check(report):
                 report(f"Version {info['version']} is available. You have {APP_VERSION}.", True)
                 show_update_dialog(info, force=True)
             elif status == "latest":
-                report("You have the latest version.", True)
+                report(f"You have the latest version (you: {APP_VERSION}, latest on GitHub: {info['version'] if info else APP_VERSION}).", True)
             elif status == "disabled":
                 report("Update link is not set yet (see aerograb/links.py).", False)
             else:
@@ -83,7 +84,7 @@ def show_update_dialog(info, force=False):
     _win[0] = win
     apply_window_icon(win)
     win.title("Update available")
-    win.geometry("470x400")
+    fit_geometry(win, 470, 400)
     win.resizable(False, False)
     win.attributes("-topmost", True)
     win.after(500, lambda: win.attributes("-topmost", False))

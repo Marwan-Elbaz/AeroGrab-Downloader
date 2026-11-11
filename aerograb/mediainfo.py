@@ -168,6 +168,24 @@ def estimate_size(fmts, quality, h264=None):
 
 
 
+def _extract_info_fast(y, opts, url):
+    """
+    جلب معلومات الفيديو/الجودات بأسرع شكل: بنتخطّى طلبات يوتيوب اللي مش لازمة لعرض الجودات (manifests الـ HLS/DASH والترجمات
+    المترجمة آلياً) ونقلّل المهلة وإعادة المحاولة. لو يوتيوب ورجع من غير صيغ بنعيد بالطريقة الكاملة (مفيش فقد للجودات).
+    """
+    fast = dict(opts)
+    ea = dict(fast.get("extractor_args") or {})
+    ea["youtube"] = dict(ea.get("youtube") or {}, skip=["hls", "dash", "translated_subs"])
+    fast.update({"extractor_args": ea, "writesubtitles": False, "writeautomaticsub": False, "extractor_retries": 1,
+                 "socket_timeout": min(int(fast.get("socket_timeout") or 20), 15)})
+    with y.YoutubeDL(fast) as ydl:
+        info = ydl.extract_info(url, download=False)
+    if info and (_fmt_list(info) or "youtu" not in url.lower()):
+        return info
+    with y.YoutubeDL(opts) as ydl:
+        return ydl.extract_info(url, download=False)
+
+
 def fetch_media_details(url, quality, referer="", direct=False):
     """تفاصيل الفيديو لنافذة التأكيد: العنوان، الصورة، المدة، القناة، الجودات المتاحة، الحجم."""
     d = {"title": "", "pil": None, "size": "", "duration": None, "uploader": "", "qualities": [], "fmts": [], "direct": False}
@@ -181,8 +199,7 @@ def fetch_media_details(url, quality, referer="", direct=False):
         opts["skip_download"] = True
         if referer:
             opts["http_headers"] = {**(opts.get("http_headers") or {}), "Referer": referer}     # من غير ما نمسح User-Agent المخصص
-        with y.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        info = _extract_info_fast(y, opts, url)
         if not info:
             raise RuntimeError("no info")
         fmts = _fmt_list(info)
@@ -263,8 +280,7 @@ def get_available_qualities_for_url(url):
         y = ensure_ytdlp()
         opts = base_ydl_opts()
         opts.update({"skip_download": True, "socket_timeout": 12})
-        with y.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        info = _extract_info_fast(y, opts, url)
         return qualities_from_fmts(_fmt_list(info))
     except Exception as e:
         log_error(f"get_available_qualities_for_url {url}", e)

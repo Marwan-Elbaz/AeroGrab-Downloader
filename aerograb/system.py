@@ -106,7 +106,17 @@ def _documents_dir():
     return os.path.join(HOME, "Documents")
 
 
-def prepare_extension_folder():
+def bundled_extension_version():
+    """رقم نسخة الإضافة اللي مع البرنامج (من manifest.json)."""
+    import json
+    try:
+        with open(os.path.join(BASE_DIR, "extension", "manifest.json"), encoding="utf-8") as f:
+            return str(json.load(f).get("version") or "")
+    except Exception:
+        return ""
+
+
+def prepare_extension_folder(create=True):
     """
     بيجهّز مجلد إضافة المتصفح في مكان ظاهر وسهل (Documents\\AeroGrab Browser Extension) بدل مجلد البرنامج المخفي (AppData).
     بيتحدّث تلقائياً لو الإضافة اتغيّرت. لو النسخ فشل بنرجّع المجلد الأصلي. بيرجّع المسار.
@@ -117,6 +127,8 @@ def prepare_extension_folder():
     if not os.path.isdir(src):
         return src
     dst = os.path.join(_documents_dir(), "AeroGrab Browser Extension")
+    if not create and not os.path.isdir(dst):
+        return src                         # اليوزر لسه مربطش من النسخة دي: منعملش مجلد في Documents من نفسنا
     try:
         def same(a, b):
             fa = sorted(os.path.relpath(os.path.join(r, f), a) for r, _d, fs in os.walk(a) for f in fs)

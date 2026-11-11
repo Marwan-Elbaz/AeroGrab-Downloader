@@ -12,6 +12,7 @@ from tkinter import messagebox
 import tkinter as tk
 from tkinter import ttk
 from aerograb.common import log_error, save_settings
+from aerograb.views.winutil import fit_geometry
 from aerograb.config import UI_FONT
 from aerograb.files import expand_patterns
 from aerograb.fmt import QUALITY_MAP, STANDARD_HEIGHTS, fmt_bytes, is_valid_url
@@ -375,7 +376,7 @@ def show_playlist_picker(url, quality="", referer="", cookie="", ua="", preselec
     win.configure(fg_color=WIN_BG)
     win.attributes("-topmost", True)
     win.after(700, lambda: win.attributes("-topmost", False))
-    win.geometry("780x700")
+    fit_geometry(win, 780, 700, 560, 420)
     win.bind("<Destroy>", lambda e: _open_popups.pop(key, None) if e.widget is win else None)
     win.bind("<Escape>", lambda e: win.destroy())
     card = ctk.CTkFrame(win, corner_radius=18, fg_color=CARD_BG, border_width=1, border_color=CARD_BORDER)
@@ -576,7 +577,7 @@ def add_link_manual():
     win = ctk.CTkToplevel(gui.root)
     apply_window_icon(win)
     win.title("Add Download")
-    win.geometry("600x370")
+    fit_geometry(win, 600, 370)
     win.attributes("-topmost", True)
     ctk.CTkLabel(win, text="Enter one or more links (one per line):", font=("Arial", 13, "bold")).pack(pady=(15, 5))
     box = ctk.CTkTextbox(win, width=470, height=140, font=("Arial", 11))

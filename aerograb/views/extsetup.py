@@ -137,6 +137,7 @@ def show_extension_setup(parent=None):
     except Exception:
         s = 1.0
     w, h = int(round(600 * s)), win.winfo_reqheight()
+    w, h = min(w, win.winfo_screenwidth() - 40), min(h, win.winfo_screenheight() - int(100 * s))      # مش أكبر من الشاشة
     x = gui.root.winfo_rootx() + max(0, (gui.root.winfo_width() - w) // 2)
     y = max(0, gui.root.winfo_rooty() + (gui.root.winfo_height() - h) // 3)
     tk.Toplevel.geometry(win, f"{w}x{h}+{x}+{y}")

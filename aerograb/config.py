@@ -5,11 +5,11 @@ import sys
 
 APP_NAME = "AeroGrab"
 
-APP_VERSION = "4.1"
+APP_VERSION = "4.2"
 
 # نسخة ملفات إضافة المتصفح المتوافقة مع البرنامج (extension/manifest.json). الإضافة بتتثبّت يدوي فمش بتتحدّث مع البرنامج،
 # فبنقارن بالرقم ده مش بـ APP_VERSION عشان تحديث البرنامج ميطلعش تحذير غلط. غيّره بس لو عدّلت الإضافة نفسها.
-EXTENSION_VERSION = "4.1"
+EXTENSION_VERSION = "4.2"
 
 PORT = 9999
 

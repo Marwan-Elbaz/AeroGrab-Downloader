@@ -88,3 +88,28 @@ def apply_glass_effect(window, dark=True):
 
 # ----------------------------------------------------------------------------- Thumbnails
 THUMB_W, THUMB_H = 160, 90
+
+
+def fit_geometry(win, w, h, min_w=None, min_h=None, center=True):
+    """
+    بيظبط حجم النافذة (بوحدات ctk: قبل تكبير الشاشة) عشان متعدّيش الشاشة اللي شغّالة عليها، وبيوسّطها.
+    مثال: شاشة لابتوب صغيرة أو تكبير 150% => النافذة بتصغر لحد ما تتسع في الشاشة بدل ما تتقص.
+    """
+    try:
+        try:
+            scale = float(win._get_window_scaling())
+        except Exception:
+            scale = 1.0
+        sw, sh = win.winfo_screenwidth() / scale, win.winfo_screenheight() / scale
+        w = int(max(300, min(w, sw - 40)))
+        h = int(max(240, min(h, sh - 100)))                    # 100 = شريط المهام + شريط العنوان
+        if min_w is not None and min_h is not None:
+            win.minsize(int(min(min_w, w)), int(min(min_h, h)))
+        if center:
+            x = int(max(0, (win.winfo_screenwidth() - w * scale) // 2))
+            y = int(max(0, (win.winfo_screenheight() - h * scale) // 2 - 30))
+            win.geometry(f"{w}x{h}+{x}+{y}")
+        else:
+            win.geometry(f"{w}x{h}")
+    except Exception as e:
+        log_error("fit_geometry", e)

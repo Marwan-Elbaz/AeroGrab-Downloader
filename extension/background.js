@@ -48,6 +48,27 @@ async function restoreCached() {
 }
 const ready = restoreCached();       // أول ما الـ service worker يصحى
 
+// ---------- تحديث الإضافة نفسها: البرنامج بيبلّغنا برقم أحدث نسخة في مجلد الإضافة، فنعيد تحميل نفسنا من المجلد (إضافة unpacked بتقرا الملفات الجديدة)
+function verNum(v) { return String(v || "").split(".").map((x) => parseInt(x, 10) || 0); }
+function isNewerVer(a, b) {
+    const x = verNum(a), y = verNum(b);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) {
+        const d = (x[i] || 0) - (y[i] || 0);
+        if (d) return d > 0;
+    }
+    return false;
+}
+async function maybeSelfUpdate(latest) {
+    try {
+        if (!latest || !isNewerVer(latest, chrome.runtime.getManifest().version)) return;
+        const st = await chrome.storage.local.get("reloadFor");
+        const last = st && st.reloadFor;
+        if (last && last.v === latest && Date.now() - last.at < 3600 * 1000) return;     // جرّبنا من شوية والملفات لسه قديمة: مفيش حلقة
+        await chrome.storage.local.set({ reloadFor: { v: latest, at: Date.now() } });
+        chrome.runtime.reload();
+    } catch (_) {}
+}
+
 async function loadConfig(force) {
     if (!force && Date.now() - cfgAt < CFG_TTL_MS) return cfg;
     if (cfgLoading) return cfgLoading;
@@ -57,6 +78,7 @@ async function loadConfig(force) {
             if (r.ok) {
                 const j = await r.json();
                 applyCfg(j);
+                maybeSelfUpdate(j.ext_latest);
                 try { await chrome.storage.local.set({ cfg: j }); } catch (_) {}
             }
         } catch (_) { /* البرنامج مقفول: نكمّل بآخر نسخة محفوظة */ }

@@ -468,6 +468,7 @@ def open_properties_selected():
     win.update_idletasks()
     s = _win_scale(win)
     w, h = int(round(620 * s)), win.winfo_reqheight()
+    w, h = min(w, win.winfo_screenwidth() - 40), min(h, win.winfo_screenheight() - int(100 * s))      # مش أكبر من الشاشة
     x = gui.root.winfo_rootx() + max(0, (gui.root.winfo_width() - w) // 2)
     y = max(0, gui.root.winfo_rooty() + (gui.root.winfo_height() - h) // 3)
     tk.Toplevel.geometry(win, f"{w}x{h}+{x}+{y}")                  # بالبكسل الفعلي (geometry بتاعة ctk كانت هتضرب في التكبير تاني)
@@ -680,7 +681,7 @@ def start_after_countdown(mode, seconds=60):
     win = ctk.CTkToplevel(gui.root)
     apply_window_icon(win)
     win.title("Downloads finished")
-    win.geometry("430x190")
+    fit_geometry(win, 430, 190)
     win.attributes("-topmost", True)
     ctk.CTkLabel(win, text="✔  All downloads are finished", font=(UI_FONT, 15, "bold")).pack(pady=(20, 6))
     lbl = ctk.CTkLabel(win, text="", font=(UI_FONT, 14), text_color=GREEN)
@@ -801,4 +802,4 @@ from aerograb.views.icons import _parse_size  # noqa: E402
 from aerograb.views.popups import show_quick_confirm_popup  # noqa: E402
 from aerograb.views.stats import _overall_key, _shorten  # noqa: E402
 from aerograb.views.thumbs import GREEN, GREEN_H, _thumb_mem, make_type_icon  # noqa: E402
-from aerograb.views.winutil import open_path, reveal_in_folder  # noqa: E402
+from aerograb.views.winutil import fit_geometry, open_path, reveal_in_folder  # noqa: E402

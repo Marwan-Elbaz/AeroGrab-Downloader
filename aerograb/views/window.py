@@ -106,8 +106,8 @@ def main_gui(initial_items=None):
     gui.root = ctk.CTk()
     gui.root.title("AeroGrab")
     apply_window_icon(gui.root)
-    gui.root.geometry("1040x650")
-    gui.root.minsize(980, 540)
+    from aerograb.views.winutil import fit_geometry
+    fit_geometry(gui.root, 1040, 650, 760, 480)                    # حجم يناسب الشاشة اللي شغّالة عليها
     gui.root.configure(fg_color=("#eef0f3", "#101114"))
     gui.root.report_callback_exception = lambda exc, val, tb: logging.error("Tk callback error: %s", "".join(traceback.format_exception(exc, val, tb)))
 
@@ -558,6 +558,13 @@ def main_gui(initial_items=None):
             log_error("prepare js runtime", e)
     threading.Thread(target=_prepare_js, daemon=True, name="aerograb-js-runtime").start()
     start_background_checks()           # التحديث التلقائي: بيفحص بعد ثواني من فتح البرنامج
+    def _sync_extension():              # لو اليوزر ربط الإضافة من مجلد Documents: نحدّثه بآخر ملفات تلقائياً
+        try:
+            from aerograb.system import prepare_extension_folder
+            prepare_extension_folder(create=False)
+        except Exception as e:
+            log_error("sync extension", e)
+    threading.Thread(target=_sync_extension, daemon=True, name="aerograb-ext-sync").start()
     from aerograb.views.extsetup import maybe_show_first_run
     gui.root.after(2500, maybe_show_first_run)      # أول مرة: نافذة بتشرح ربط المتصفح بخطوات سهلة
 

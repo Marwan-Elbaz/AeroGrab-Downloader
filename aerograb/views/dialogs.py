@@ -6,6 +6,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 import tkinter as tk
 from aerograb.checksum import ALGOS, compute, extract_hash
+from aerograb.views.winutil import fit_geometry
 from aerograb.fmt import fmt_bytes
 from aerograb.state import tasks, tasks_lock, ui
 from aerograb.uistate import gui
@@ -58,7 +59,7 @@ def show_refresh_dialog(iid):
     apply_window_icon(win)
     _open[("refresh", iid)] = win
     win.title("Refresh download link")
-    win.geometry("620x330")
+    fit_geometry(win, 620, 330)
     win.resizable(False, False)
     win.attributes("-topmost", True)
     win.after(500, lambda: win.attributes("-topmost", False))
@@ -116,7 +117,7 @@ def show_verify_dialog(iid):
     apply_window_icon(win)
     _open[("verify", iid)] = win
     win.title("Verify file integrity")
-    win.geometry("640x470")
+    fit_geometry(win, 640, 470)
     win.resizable(False, False)
     win.attributes("-topmost", True)
     win.after(500, lambda: win.attributes("-topmost", False))

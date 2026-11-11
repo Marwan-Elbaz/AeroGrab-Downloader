@@ -83,10 +83,15 @@ def fetch_latest():
     """بيرجّع dict بالإصدار الأحدث (حتى لو مش أحدث من الحالي)، أو يرمي استثناء لو فشل الاتصال."""
     if not enabled():
         raise RuntimeError("UPDATE_REPO is empty")
-    url = f"https://api.github.com/repos/{UPDATE_REPO.strip()}/releases/latest"
+    # بنقرا آخر الإصدارات ونختار الأعلى رقماً (مش بس "latest" اللي GitHub بيحدده بتاريخ الإنشاء)، فحتى لو ترتيب النشر اتلخبط التحديث بيتلقط
+    url = f"https://api.github.com/repos/{UPDATE_REPO.strip()}/releases?per_page=20"
     req = urllib.request.Request(url, headers={"User-Agent": "aerograb-updater", "Accept": "application/vnd.github+json"})
     with _urlopen(req) as r:
-        data = json.loads(r.read().decode("utf-8"))
+        rels = json.loads(r.read().decode("utf-8"))
+    rels = [x for x in rels if not x.get("draft") and not x.get("prerelease") and re.search(r"\d", str(x.get("tag_name") or ""))]
+    if not rels:
+        raise RuntimeError("no published releases found")
+    data = max(rels, key=lambda x: parse_version(x.get("tag_name")) + (0,) * (4 - len(parse_version(x.get("tag_name")))))
     asset = _pick_asset(data.get("assets") or [])
     return {
         "version": str(data.get("tag_name") or "").lstrip("vV"),

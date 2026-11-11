@@ -6,18 +6,18 @@ Every link used by the app lives here. Paste your URL between the quotes and you
 """
 
 # رابط المشروع على GitHub  (أيقونة GitHub)           e.g. "https://github.com/yourname/AeroGrab"
-GITHUB_URL = ""
+GITHUB_URL = "https://github.com/Marwan-Elbaz/AeroGrab-Downloader"
 
 # قناتك على يوتيوب  (أيقونة YouTube)                  e.g. "https://www.youtube.com/@yourchannel"
 YOUTUBE_URL = ""
 
 # صفحة التواصل / الاقتراحات  (أيقونة الرسالة)         e.g. "https://t.me/yourname" or a GitHub Issues link
-FEEDBACK_URL = ""
+FEEDBACK_URL = "https://github.com/Marwan-Elbaz"
 
 COPYRIGHT_OWNER = "AeroGrab"          # الاسم اللي بيظهر بعد © في صفحة About
 
 # الرابط اللي زرار "مشاركة" بينسخه مباشرة للحافظة. لو فاضي بيستخدم GITHUB_URL
-SHARE_URL = ""
+SHARE_URL = "https://github.com/Marwan-Elbaz/AeroGrab-Downloader"
 
 # دليل الكوكيز (أيقونة الكوكي في Tools). اختياري
 COOKIES_HELP_URL = "https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp"
@@ -25,4 +25,4 @@ COOKIES_HELP_URL = "https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cook
 # ----------------------------------------------------------------------------- التحديث التلقائي
 # مستودع GitHub اللي بتنشر عليه الإصدارات بصيغة "owner/repo". لو فاضي التحديث التلقائي بيتوقف.
 # (Releases: كل إصدار جديد بتعمله على GitHub بيوصل لكل المستخدمين لوحده)
-UPDATE_REPO = ""
+UPDATE_REPO = "Marwan-Elbaz/AeroGrab-Downloader"

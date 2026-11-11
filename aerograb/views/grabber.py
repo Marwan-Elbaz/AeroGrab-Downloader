@@ -7,6 +7,7 @@ from tkinter import messagebox
 import tkinter as tk
 from tkinter import ttk
 from aerograb.config import UI_FONT
+from aerograb.views.winutil import fit_geometry
 from aerograb.files import cookie_for
 from aerograb.fmt import EXT_KIND
 from aerograb.limits import get_default_quality_safe
@@ -30,7 +31,7 @@ def show_link_grabber(items, referer="", cookie="", ua=""):
     win = ctk.CTkToplevel(gui.root)
     apply_window_icon(win)
     win.title("Link Grabber")
-    win.geometry("940x660")
+    fit_geometry(win, 940, 660, 640, 420)
     win.attributes("-topmost", True)
     win.after(700, lambda: win.attributes("-topmost", False))
     rows = []

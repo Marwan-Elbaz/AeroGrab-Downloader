@@ -15,6 +15,7 @@ from aerograb.limits import get_default_quality_safe
 from aerograb.mediainfo import EXT_ORIGIN_RE, _recent_adds, _recent_lock, get_qualities_cached
 from aerograb.netutil import _urlopen
 from aerograb.capture import capture_config, program_language
+from aerograb.system import bundled_extension_version
 from aerograb.state import ext_info, gui_lock, pending_batches, pending_urls, show_gui_event, ui
 from aerograb.uistate import gui
 
@@ -96,7 +97,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._json({"app": "idm-modern-pro", "version": APP_VERSION, "gui": gui.gui_running}, origin)
             elif path == "/get_settings":
                 ext_info["t"], ext_info["v"] = time.time(), arg("v")[:20]
-                self._json(capture_config(), origin)
+                cfg = capture_config()
+                cfg["ext_latest"] = bundled_extension_version()          # الإضافة بتقارنه برقمها وتحدّث نفسها لو أقدم
+                self._json(cfg, origin)
             elif path == "/get_lang":
                 self._send(200, program_language(), origin=origin)
             elif path == "/get_default_quality":
