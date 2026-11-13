@@ -130,7 +130,7 @@ def save_history():
             "dismissed": bool(t.get("dismissed")), "clip_start": t.get("clip_start"), "clip_end": t.get("clip_end"),
             "clip_precise": t.get("clip_precise", True), "name_prefix": t.get("name_prefix", ""), "clip_key": t.get("clip_key"),
             "resumable": t.get("resumable"), "conns": t.get("conns", 0), "fmt_desc": t.get("fmt_desc", ""),
-            "part_key": t.get("part_key"),
+            "part_key": t.get("part_key"), "lower_ok": bool(t.get("lower_ok")),
         } for t in tasks.values()]
     _atomic_write_json(HISTORY_FILE, data)
 
@@ -151,7 +151,7 @@ def load_history():
         t = new_task(data["url"], data.get("quality", "1080p"),
                      data.get("save_path") or (gui.download_path_var.get() or default_dir),
                      data.get("is_repeat", False), data.get("referer", ""), direct=bool(data.get("direct")),
-                     **{k: data[k] for k in ("clip_start", "clip_end", "clip_precise", "name_prefix", "clip_key", "part_key") if data.get(k) is not None})
+                     **{k: data[k] for k in ("clip_start", "clip_end", "clip_precise", "name_prefix", "clip_key", "part_key", "lower_ok") if data.get(k) is not None})
         if data.get("thumb"):
             t["thumb"] = data["thumb"]
         for k in ("resumable", "conns", "fmt_desc"):

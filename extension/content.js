@@ -196,6 +196,26 @@
         return cands.find(ok) || null;
     }
     
+    // كارت قايمة تشغيل (مش فيديو): رابطه بيشاور على أول فيديو + list=، فلازم نعامله كقايمة بس (من غير جودات أول فيديو)
+    const PL_CONTAINER_SEL = 'ytd-playlist-renderer, ytd-grid-playlist-renderer, ytd-compact-playlist-renderer, ytd-playlist-panel-renderer';
+    function isPlaylistCard(thumb, a) {
+        try {
+            const u = new URL(a.href, location.origin);
+            if (u.pathname === '/playlist') return true;
+            if (!u.searchParams.get('list')) return false;
+            const c = thumb.closest(CONTAINER_SEL);
+            if (!c) return false;
+            if (c.matches(PL_CONTAINER_SEL)) return true;
+            return !!c.querySelector('yt-collection-thumbnail-view-model, [class*="collection-stack"], [class*="lockup-view-model--collection"]');
+        } catch (_) { return false; }
+    }
+    function thumbTarget(thumb) {
+        const a = findAnchor(thumb);        // الـ DOM بتاع يوتيوب بيتعاد استخدامه، فنقرأ الرابط وقت الضغط
+        if (!a) return { video: null, playlist: null };
+        const c = classify(a.href);
+        return isPlaylistCard(thumb, a) ? { video: null, playlist: c.playlist } : c;
+    }
+
     // ---------------- الإرسال للبرنامج (كل حاجة بتعدّي على نافذة التأكيد في البرنامج)
     function sendResult(res) {
         if (!res) toast(t('⚠️ The extension was updated — refresh the page'), true);
@@ -390,10 +410,7 @@
                 const a = findAnchor(thumb);
                 if (!a) return;
                 thumb.dataset.idmDone = '1';
-                const widget = createWidget(false, () => {
-                    const cur = findAnchor(thumb);        // الـ DOM بتاع يوتيوب بيتعاد استخدامه، فنقرأ الرابط وقت الضغط
-                    return cur ? classify(cur.href) : { video: null, playlist: null };
-                });
+                const widget = createWidget(false, () => thumbTarget(thumb));
                 if (getComputedStyle(thumb).position === 'static') thumb.style.position = 'relative';
                 thumb.appendChild(widget);
             });

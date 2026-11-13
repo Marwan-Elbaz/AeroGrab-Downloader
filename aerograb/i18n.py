@@ -167,7 +167,7 @@ AR = {
     "Playlist": "قائمة تشغيل", "📚  Loading playlist…": "📚  جارٍ تحميل قائمة التشغيل…",
     "⚠  No videos found in this playlist.": "⚠  لا توجد فيديوهات في قائمة التشغيل هذه.", "🔍  Filter…": "🔍  تصفية…",
     "Duration": "المدة", "Title": "العنوان", "Select all": "تحديد الكل", "Select none": "إلغاء التحديد", "Invert": "عكس التحديد",
-    "Folder for this playlist": "مجلد لهذه القائمة", "Number the files (01 - …)": "ترقيم الملفات (01 - …)", "Add": "إضافة",
+    "Folder for this playlist": "مجلد لهذه القائمة", "If a video doesn't have this quality, use the closest lower one": "لو فيديو مالوش الجودة دي، نزّل أقرب جودة أقل", "Number the files (01 - …)": "ترقيم الملفات (01 - …)", "Add": "إضافة",
     "⬇  Download selected": "⬇  تنزيل المحدد", "Add Download": "إضافة تنزيل", "Enter one or more links (one per line):": "أدخل رابطاً أو أكثر (رابط في كل سطر):",
     "Tip: for a numbered series use  http://site.com/img[001-050].jpg": "نصيحة: للسلاسل المرقمة استخدم  http://site.com/img[001-050].jpg",
     "📋 Paste": "📋 لصق", "Import links": "استيراد روابط", "All files": "كل الملفات", "Text / lists": "نصوص / قوائم",

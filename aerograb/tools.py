@@ -91,7 +91,7 @@ def quality_filters(h):
 
 
 
-def format_for(q_text, have_ffmpeg=True, h264=None, level=0):
+def format_for(q_text, have_ffmpeg=True, h264=None, level=0, lower_ok=False):
     """
     صيغة yt-dlp للجودة المختارة بالظبط. البرنامج عمره ما بينزّل جودة غير اللي اخترتها: لو الجودة مش موجودة
     التحميل بيفشل برسالة واضحة بدل ما ينزّل جودة تانية. المسموح بس هو اختلاف الكودك (مثلاً VP9 بدل H.264) بنفس الجودة،
@@ -105,9 +105,12 @@ def format_for(q_text, have_ffmpeg=True, h264=None, level=0):
     if h264 is None:
         h264 = h264_enabled()
     out = []
+    low = f"[height<={h}]"                    # lower_ok (قوايم التشغيل): لو الجودة مش موجودة ننزّل أقرب جودة أقل منها (عمره ما بينزّل أعلى)
     if not have_ffmpeg:                       # من غير ffmpeg مفيش دمج فيديو+صوت، فنختار ملف واحد جاهز
         for sel in sels:
             out += [f"b{sel}[ext=mp4]", f"b{sel}"]
+        if lower_ok:
+            out += [f"b{low}[ext=mp4]", f"b{low}"]
         return "/".join(out)
     if h264:
         for sel in sels:                      # H.264 + AAC الأول (بيشتغل على كل الأجهزة)
@@ -117,6 +120,10 @@ def format_for(q_text, have_ffmpeg=True, h264=None, level=0):
             out += [f"bv*[ext=mp4]{sel}+ba[ext=m4a]"]
     for sel in sels:                          # نفس الجودة بأي كودك
         out += [f"bv*{sel}+ba", f"b{sel}"]
+    if lower_ok:                              # آخر حل: أقرب جودة أقل (H.264 الأول)
+        if h264:
+            out += [f"bv*[vcodec^=avc1]{low}+ba", f"b[vcodec^=avc1]{low}"]
+        out += [f"bv*{low}+ba", f"b{low}"]
     return "/".join(out)
 
 

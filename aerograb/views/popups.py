@@ -376,7 +376,7 @@ def show_playlist_picker(url, quality="", referer="", cookie="", ua="", preselec
     win.configure(fg_color=WIN_BG)
     win.attributes("-topmost", True)
     win.after(700, lambda: win.attributes("-topmost", False))
-    fit_geometry(win, 780, 700, 560, 420)
+    fit_geometry(win, 780, 700, 560, 480)
     win.bind("<Destroy>", lambda e: _open_popups.pop(key, None) if e.widget is win else None)
     win.bind("<Escape>", lambda e: win.destroy())
     card = ctk.CTkFrame(win, corner_radius=18, fg_color=CARD_BG, border_width=1, border_color=CARD_BORDER)
@@ -424,6 +424,8 @@ def show_playlist_picker(url, quality="", referer="", cookie="", ua="", preselec
         sel_lbl = ctk.CTkLabel(bar_row, text="", font=(UI_FONT, 12, "bold"), text_color=GREEN)
         search = ctk.CTkEntry(bar_row, placeholder_text="🔍  Filter…", width=180, height=30)
         search.pack(side="right")
+        footer = ctk.CTkFrame(body, fg_color="transparent")      # بيتحط تحت الأول: زرار التنزيل يفضل ظاهر مهما كانت النافذة صغيرة، والقايمة هي اللي بتتقلص
+        footer.pack(side="bottom", fill="x")
         holder = ctk.CTkFrame(body, fg_color="transparent")
         holder.pack(fill="both", expand=True, pady=8)
         gt = ttk.Treeview(holder, columns=("ok", "n", "title", "dur"), show="headings", selectmode="browse")
@@ -491,19 +493,24 @@ def show_playlist_picker(url, quality="", referer="", cookie="", ua="", preselec
         sel_lbl.pack(side="left", padx=8)
 
         # --- الخيارات
-        opt = ctk.CTkFrame(body, fg_color="transparent")
-        opt.pack(fill="x", pady=(0, 6))
+        opt = ctk.CTkFrame(footer, fg_color="transparent")
+        opt.pack(fill="x", pady=(0, 4))
+        opt2 = ctk.CTkFrame(footer, fg_color="transparent")
+        opt2.pack(fill="x", pady=(0, 6))
         qvals = list(QUALITY_MAP.keys())
         q_var = ctk.StringVar(value=quality if quality in qvals else get_default_quality_safe())
         ctk.CTkLabel(opt, text="Quality", font=(UI_FONT, 12, "bold")).pack(side="left")
         ctk.CTkOptionMenu(opt, values=qvals, variable=q_var, width=110, height=30, fg_color=("#e8ebef", "#232730"),
                           button_color=("#d3d9e0", "#2b3644"), text_color=("#1a1d21", "#f1f3f5")).pack(side="left", padx=(8, 16))
         sub_var, num_var = ctk.BooleanVar(value=True), ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(opt, text="Folder for this playlist", variable=sub_var, width=20, checkbox_width=18, checkbox_height=18,
+        low_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(opt, text="If a video doesn't have this quality, use the closest lower one", variable=low_var, width=20,
+                        checkbox_width=18, checkbox_height=18, font=(UI_FONT, 12), fg_color=GREEN, hover_color=GREEN_H).pack(side="left")
+        ctk.CTkCheckBox(opt2, text="Folder for this playlist", variable=sub_var, width=20, checkbox_width=18, checkbox_height=18,
                         font=(UI_FONT, 12), fg_color=GREEN, hover_color=GREEN_H).pack(side="left", padx=(0, 14))
-        ctk.CTkCheckBox(opt, text="Number the files (01 - …)", variable=num_var, width=20, checkbox_width=18, checkbox_height=18,
+        ctk.CTkCheckBox(opt2, text="Number the files (01 - …)", variable=num_var, width=20, checkbox_width=18, checkbox_height=18,
                         font=(UI_FONT, 12), fg_color=GREEN, hover_color=GREEN_H).pack(side="left")
-        prow = ctk.CTkFrame(body, fg_color="transparent")
+        prow = ctk.CTkFrame(footer, fg_color="transparent")
         prow.pack(fill="x", pady=(2, 8))
         ctk.CTkLabel(prow, text="Save to", font=(UI_FONT, 12, "bold")).pack(side="left", padx=(0, 8))
         ctk.CTkButton(prow, text="Browse", width=70, height=30, fg_color="#FF9800", hover_color="#F57C00",
@@ -526,18 +533,21 @@ def show_playlist_picker(url, quality="", referer="", cookie="", ua="", preselec
                 messagebox.showerror("Playlist", f"Cannot use this folder:\n{folder}\n\n{e}", parent=win)
                 return
             q, number, width = q_var.get(), num_var.get(), max(2, len(str(total)))
+            lower = bool(low_var.get()) and q != "Audio Only"
             win.destroy()
             _batch["on"] = True
             try:
                 for i in idxs:
-                    extra = {"name_prefix": f"{str(i + 1).zfill(width)} - "} if number else None
+                    extra = {"name_prefix": f"{str(i + 1).zfill(width)} - "} if number else {}
+                    if lower:
+                        extra["lower_ok"] = True
                     start_single_download(entries[i]["url"], q, save_path=folder, referer=referer, extra=extra)
             finally:
                 _batch["on"] = False
                 save_history()
                 filter_tasks(gui.current_filter)
 
-        dl_btn = ctk.CTkButton(body, text="⬇  Download selected", height=42, font=(UI_FONT, 14, "bold"), fg_color=GREEN,
+        dl_btn = ctk.CTkButton(footer, text="⬇  Download selected", height=42, font=(UI_FONT, 14, "bold"), fg_color=GREEN,
                                hover_color=GREEN_H, command=do_download)
         dl_btn.pack(fill="x")
         refill()

@@ -495,6 +495,7 @@ def download_worker(item_id, run, url, q_text):
             clip_precise, name_prefix = bool(t.get("clip_precise", True)), t.get("name_prefix") or ""
             clip_key = t.get("clip_key")
             part_key = t.get("part_key")
+            lower_ok = bool(t.get("lower_ok"))
             refreshed = bool(t.pop("link_refreshed", False))
         has_clip = clip_s is not None or clip_e is not None
         clip_suffix = f"  ✂ {fmt_hms(clip_s or 0)}–{fmt_hms(clip_e) if clip_e is not None else 'end'}" if has_clip else ""
@@ -660,7 +661,7 @@ def download_worker(item_id, run, url, q_text):
         def build_opts(use_thumb):
             o = base_ydl_opts()
             o.update({
-                "format": "best" if direct else format_for(q_text, have_ffmpeg),
+                "format": "best" if direct else format_for(q_text, have_ffmpeg, lower_ok=lower_ok),
                 "paths": {"home": home_dir, **({"temp": temp_dir} if temp_dir else {})},
                 "outtmpl": outtmpl,
                 "merge_output_format": "mp4",
