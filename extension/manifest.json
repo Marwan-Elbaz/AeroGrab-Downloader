@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AeroGrab",
-  "version": "4.2",
+  "version": "4.2.1",
   "minimum_chrome_version": "102",
   "description": "Sends your browser downloads and videos to AeroGrab, a fast and private download manager.",
   "icons": {
